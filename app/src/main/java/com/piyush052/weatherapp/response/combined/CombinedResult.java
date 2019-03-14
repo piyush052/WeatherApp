@@ -4,8 +4,8 @@ import com.piyush052.weatherapp.response.forecast.ForecastResponse;
 import com.piyush052.weatherapp.response.weather.WeatherResponse;
 
 public class CombinedResult {
-    ForecastResponse forecastResponse;
-    WeatherResponse weatherResponse;
+    public ForecastResponse forecastResponse;
+   public WeatherResponse weatherResponse;
 
     public CombinedResult(ForecastResponse forecastResponse, WeatherResponse weatherResponse) {
         this.forecastResponse = forecastResponse;

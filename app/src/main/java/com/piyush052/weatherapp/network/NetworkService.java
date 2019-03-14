@@ -1,6 +1,10 @@
 package com.piyush052.weatherapp.network;
 
-import com.piyush052.weatherapp.response.WeatherResponse;
+import android.util.Log;
+
+import com.piyush052.weatherapp.response.combined.CombinedResult;
+import com.piyush052.weatherapp.response.forecast.ForecastResponse;
+import com.piyush052.weatherapp.response.weather.WeatherResponse;
 
 import java.io.IOException;
 
@@ -13,6 +17,11 @@ import retrofit2.HttpException;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
+import rx.Observable;
+import rx.Subscriber;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Func2;
+import rx.schedulers.Schedulers;
 
 public class NetworkService {
 
@@ -22,7 +31,7 @@ public class NetworkService {
     private NetworkEndPoints mRequestInterface;
     private static String BASE_URL = "http://api.apixu.com/v1/";
 
-    private String  WEATHER_API_KEY ="89c817e449d74d578ac80831191403";
+    private String WEATHER_API_KEY = "89c817e449d74d578ac80831191403";
 
     private NetworkService() {
         mRequestInterface = getRetrofitService(NetworkEndPoints.class);
@@ -73,9 +82,9 @@ public class NetworkService {
     }
 
 
-    public void callWeatherApi( final Request request, final NetworkResponse responseCallback) {
+    public void callWeatherApi(final Request request, final NetworkResponse responseCallback) {
         Call<WeatherResponse> devicesObservable = mRequestInterface
-                .getWeatherData(WEATHER_API_KEY,"Bengaluru");
+                .getWeatherData(WEATHER_API_KEY, "Bengaluru");
 
         devicesObservable.enqueue(new Callback<WeatherResponse>() {
             @Override
@@ -103,6 +112,63 @@ public class NetworkService {
 
     }
 
+    public void callBatchApi(Request request, NetworkResponse responseCallback) {
+        Observable<WeatherResponse> weatherObservable = mRequestInterface
+                .getWeatherDataObserver(WEATHER_API_KEY, "Bengaluru")
+                .subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread());
+
+
+        Observable<ForecastResponse> forecastObservable = mRequestInterface
+                .forecastDataObserver(WEATHER_API_KEY, "Bengaluru", 4)
+                .subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread());
+
+
+        Observable<CombinedResult> combined = Observable.zip(weatherObservable, forecastObservable,
+                new Func2<WeatherResponse, ForecastResponse, CombinedResult>() {
+                    @Override
+                    public CombinedResult call(WeatherResponse weatherResponse, ForecastResponse forecastResponse
+                                               ) {
+                        return new CombinedResult(forecastResponse, weatherResponse);
+                    }
+                });
+
+        combined.subscribe(new Subscriber<CombinedResult>() {
+            @Override
+            public void onCompleted() {
+                Log.v("Piyush", "Combined onCompleted");
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                Log.v("Piyush", "Combined onError : " + throwable.getMessage());
+                //handle errors
+                if (throwable instanceof HttpException) {
+                    HttpException httpException = (HttpException) throwable;
+                    retrofit2.Response response = httpException.response();
+                    responseCallback.onNetworkError(null, NetworkException.httpError(response.raw().request().url().toString(), response, null));
+                } else
+                    // A network error happened
+                    if (throwable instanceof IOException) {
+                        responseCallback.onNetworkError(null, NetworkException.networkError((IOException) throwable));
+                    } else
+                        // We don't know what happened. We need to simply convert to an unknown error
+                        responseCallback.onNetworkError(null, NetworkException.unexpectedError(throwable));
+            }
+
+            @Override
+            public void onNext(CombinedResult combinedResult) {
+                Log.v("Piyush", "Combined Next : ");
+
+                request.setResponse(combinedResult);
+
+                responseCallback.onNetworkResponse(request);
+            }
+        });
+
+
+    }
 
 
 }

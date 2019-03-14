@@ -1,4 +1,4 @@
-package com.piyush052.weatherapp.response;
+package com.piyush052.weatherapp.response.weather;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;

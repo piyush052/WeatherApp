@@ -1,9 +1,9 @@
-package com.piyush052.weatherapp.response;
+package com.piyush052.weatherapp.response.forecast;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
-public class Condition {
+public class Condition_ {
 
     @SerializedName("text")
     @Expose

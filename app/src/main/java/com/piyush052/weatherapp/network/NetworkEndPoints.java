@@ -18,9 +18,9 @@ public interface NetworkEndPoints {
     Observable<WeatherResponse> getWeatherDataObserver(@Query("key") String key, @Query("q") String cityName);
 
     @GET("forecast.json")
-    Call<ForecastResponse> forecastData(@Query("key") String key, @Query("q") String cityName, @Query("days") int days);
+    Call<ForecastResponse> forecastData(@Query("key") String key, @Query("q") String param, @Query("days") int days);
 
     @GET("forecast.json")
-    Observable<ForecastResponse> forecastDataObserver(@Query("key") String key, @Query("q") String cityName, @Query("days") int days);
+    Observable<ForecastResponse> forecastDataObserver(@Query("key") String key, @Query("q") String param, @Query("days") int days);
 
 }

@@ -2,6 +2,7 @@ package com.piyush052.weatherapp.network;
 
 import android.util.Log;
 
+import com.google.android.gms.maps.model.LatLng;
 import com.piyush052.weatherapp.response.combined.CombinedResult;
 import com.piyush052.weatherapp.response.forecast.ForecastResponse;
 import com.piyush052.weatherapp.response.weather.WeatherResponse;
@@ -112,27 +113,21 @@ public class NetworkService {
 
     }
 
-    public void callBatchApi(Request request, NetworkResponse responseCallback) {
+    public void callBatchApi(LatLng currentLatLng, Request request, NetworkResponse responseCallback) {
         Observable<WeatherResponse> weatherObservable = mRequestInterface
-                .getWeatherDataObserver(WEATHER_API_KEY, "Bengaluru")
+                .getWeatherDataObserver(WEATHER_API_KEY, currentLatLng.latitude+","+currentLatLng.longitude)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread());
 
 
         Observable<ForecastResponse> forecastObservable = mRequestInterface
-                .forecastDataObserver(WEATHER_API_KEY, "Bengaluru", 4)
+                .forecastDataObserver(WEATHER_API_KEY, currentLatLng.latitude+","+currentLatLng.longitude, 4)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread());
 
 
         Observable<CombinedResult> combined = Observable.zip(weatherObservable, forecastObservable,
-                new Func2<WeatherResponse, ForecastResponse, CombinedResult>() {
-                    @Override
-                    public CombinedResult call(WeatherResponse weatherResponse, ForecastResponse forecastResponse
-                                               ) {
-                        return new CombinedResult(forecastResponse, weatherResponse);
-                    }
-                });
+                (weatherResponse, forecastResponse) -> new CombinedResult(forecastResponse, weatherResponse));
 
         combined.subscribe(new Subscriber<CombinedResult>() {
             @Override

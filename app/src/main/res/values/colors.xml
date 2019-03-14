@@ -6,5 +6,6 @@
 
     <color name="loaderBackground">#85ffffff</color>
     <color name="screenBgColor">#f6f5f7</color>
+    <color name="barColor">#2F636363</color>
 
 </resources>

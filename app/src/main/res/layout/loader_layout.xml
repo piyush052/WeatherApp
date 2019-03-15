@@ -2,12 +2,14 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
     android:background="@color/screenBgColor"
+    android:gravity="center"
     android:layout_height="match_parent">
 
     <ImageView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:src="@mipmap/ic_launcher_round"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:id="@+id/loader"
+        android:src="@drawable/ic_loading"
 
         />
 

@@ -143,7 +143,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showErrorLayout() {
-        errorLayout.setVisibility(View.VISIBLE);
+        showLoader();
+       // errorLayout.setVisibility(View.VISIBLE);
     }
 
     private void hideErrorLayout() {

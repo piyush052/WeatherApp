@@ -1,21 +1,23 @@
 package com.piyush052.weatherapp.activities;
 
 import android.Manifest;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.annotation.SuppressLint;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -30,7 +32,11 @@ import com.piyush052.weatherapp.network.NetworkService;
 import com.piyush052.weatherapp.network.Request;
 import com.piyush052.weatherapp.response.combined.CombinedResult;
 
-public class MainActivity extends AppCompatActivity {
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+public class MainActivity extends AppCompatActivity implements NetworkResponse {
 
     private static final String TAG = "MAIN_ACTIVITY";
     private static final int GEOLOCATION_REQUEST = 101;
@@ -63,6 +69,30 @@ public class MainActivity extends AppCompatActivity {
         getLocation();
     }
 
+
+    public void showAnimation() {
+
+        FrameLayout view = findViewById(R.id.frameLayout);
+
+        final int TRANSLATION_Y = view.getHeight();
+        view.setTranslationY(TRANSLATION_Y);
+        view.setVisibility(View.GONE);
+        view.animate()
+                .translationYBy(-TRANSLATION_Y)
+                .setDuration(500)
+                .setStartDelay(200)
+                .setListener(new AnimatorListenerAdapter() {
+
+                    @Override
+                    public void onAnimationStart(final Animator animation) {
+
+                        view.setVisibility(View.VISIBLE);
+                    }
+                })
+                .start();
+
+
+    }
 
     private void getLocation() {
         showLoader();
@@ -122,6 +152,20 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private String getDay(String input) {
+        SimpleDateFormat inFormat = new SimpleDateFormat("yyyy-MM-dd");
+        Date date = null;
+        try {
+            date = inFormat.parse(input);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        SimpleDateFormat outFormat = new SimpleDateFormat("EEEE");
+        if (date != null) {
+            return outFormat.format(date);
+        } else return input;
+    }
+
     /**
      * Fetch data from server
      *
@@ -129,32 +173,48 @@ public class MainActivity extends AppCompatActivity {
      */
     private void fetchData(LatLng currentLatLng) {
 
-        NetworkService.getInstance().callBatchApi(currentLatLng, new Request(), new NetworkResponse() {
-            @SuppressLint("SetTextI18n")
-            @Override
-            public void onNetworkResponse(Request request) {
-                hideLoader();
-                // set initial state
-                if (request.getResponse() instanceof CombinedResult) {
-                    hideErrorLayout();
-                    CombinedResult combinedResult = (CombinedResult) request.getResponse();
+        NetworkService.getInstance().callBatchApi(currentLatLng, new Request(), this);
+    }
 
-                    ((TextView) findViewById(R.id.tempValue)).setText(Math.round(combinedResult.weatherResponse.getCurrent().getTempC()) + "");
-                    ((TextView) findViewById(R.id.place)).setText(combinedResult.weatherResponse.getLocation().getName() + "");
-                } else {
-                    // Something went wrong
-                    showErrorLayout();
-                }
-            }
+    @SuppressLint("SetTextI18n")
+    @Override
+    public void onNetworkResponse(Request request) {
+        hideLoader();
+        // set initial state
+        if (request.getResponse() instanceof CombinedResult) {
+            hideErrorLayout();
+            CombinedResult combinedResult = (CombinedResult) request.getResponse();
 
-            @Override
-            public void onNetworkError(Request request, NetworkException ex) {
-                Log.e(TAG, "onNetworkError: ");
-                hideLoader();
-                showErrorLayout();
-                Toast.makeText(MainActivity.this, ex.getKind() + "", Toast.LENGTH_SHORT).show();
-            }
-        });
+            ((TextView) findViewById(R.id.tempValue)).setText(Math.round(combinedResult.weatherResponse.getCurrent().getTempC()) + "");
+            ((TextView) findViewById(R.id.place)).setText(combinedResult.weatherResponse.getLocation().getName() + "");
+
+            showAnimation();
+
+            ((TextView) findViewById(R.id.day1)).setText(getDay(combinedResult.forecastResponse.getForecast().getForecastday().get(1).getDate()) + "");
+            ((TextView) findViewById(R.id.day1Value)).setText(Math.round(combinedResult.forecastResponse.getForecast().getForecastday().get(1).getDay().getAvgtempC()) + " C");
+
+            ((TextView) findViewById(R.id.day2)).setText(getDay(combinedResult.forecastResponse.getForecast().getForecastday().get(2).getDate()) + "");
+            ((TextView) findViewById(R.id.day2Value)).setText(Math.round(combinedResult.forecastResponse.getForecast().getForecastday().get(2).getDay().getAvgtempC()) + " C");
+
+            ((TextView) findViewById(R.id.day3)).setText(getDay(combinedResult.forecastResponse.getForecast().getForecastday().get(3).getDate()) + "");
+            ((TextView) findViewById(R.id.day3Value)).setText(Math.round(combinedResult.forecastResponse.getForecast().getForecastday().get(3).getDay().getAvgtempC()) + " C");
+
+            ((TextView) findViewById(R.id.day4)).setText(getDay(combinedResult.forecastResponse.getForecast().getForecastday().get(4).getDate()) + "");
+            ((TextView) findViewById(R.id.day4Value)).setText(Math.round(combinedResult.forecastResponse.getForecast().getForecastday().get(4).getDay().getAvgtempC()) + " C");
+
+
+        } else {
+            // Something went wrong
+            showErrorLayout();
+        }
+    }
+
+    @Override
+    public void onNetworkError(Request request, NetworkException ex) {
+        Log.e(TAG, "onNetworkError: ", ex);
+        hideLoader();
+        showErrorLayout();
+        Toast.makeText(MainActivity.this, ex.getKind() + "", Toast.LENGTH_SHORT).show();
     }
 
     private void showLoader() {
@@ -188,9 +248,11 @@ public class MainActivity extends AppCompatActivity {
 
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == GEOLOCATION_REQUEST) {
+            // if user is not providing permission then ask again for permission of go for the location
             getLocation();
         }
     }
+
 }

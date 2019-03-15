@@ -121,7 +121,7 @@ public class NetworkService {
 
 
         Observable<ForecastResponse> forecastObservable = mRequestInterface
-                .forecastDataObserver(WEATHER_API_KEY, currentLatLng.latitude+","+currentLatLng.longitude, 4)
+                .forecastDataObserver(WEATHER_API_KEY, currentLatLng.latitude+","+currentLatLng.longitude, 5)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread());
 

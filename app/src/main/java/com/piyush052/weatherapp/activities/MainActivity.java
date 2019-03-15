@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -16,6 +17,9 @@ import android.widget.Toast;
 
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
 import com.piyush052.weatherapp.Dialog.Loader;
@@ -35,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
 
     private MainActivity context;
     private LatLng currentLatLng;
-
+    private FusedLocationProviderClient mFusedLocationClient;
 
 
     @Override
@@ -47,63 +51,85 @@ public class MainActivity extends AppCompatActivity {
             getSupportActionBar().hide();
 
         loader = new Loader(this);
-        context= this;
+        context = this;
 
         errorLayout = findViewById(R.id.errorLayout);
         Button retryButton = findViewById(R.id.retryButton);
 
         retryButton.setOnClickListener(v -> getLocation());
 
-       // fetchData(currentLatLng);
+        // fetchData(currentLatLng);
 
         getLocation();
     }
 
 
     private void getLocation() {
+        showLoader();
 
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) !=
                 PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(context, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, GEOLOCATION_REQUEST);
         } else {
             if (currentLatLng != null) {
-               // fetch API
+                // fetch API
                 fetchData(currentLatLng);
             } else {
 
-                FusedLocationProviderClient mFusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
+                mFusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
                 mFusedLocationClient.getLastLocation()
                         .addOnSuccessListener(location -> {
                             // GPS location can be null if GPS is switched off
                             if (location != null) {
                                 currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
                                 fetchData(currentLatLng);
-                            }else {
-                                showErrorLayout();
+                            } else {
+                                showLoader();
+                                LocationRequest locationRequest = LocationRequest.create();
+                                locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+                                locationRequest.setInterval(10 * 1000); // 10 seconds
+                                locationRequest.setFastestInterval(5 * 1000); // 5 seconds
+                                mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
+
+                                //showErrorLayout();
                                 Toast.makeText(context, R.string.failed_fetch_location, Toast.LENGTH_SHORT).show();
                             }
                         })
                         .addOnFailureListener(e -> {
-                            Log.d(TAG, "Error trying to get last GPS location");
-                            e.printStackTrace();
-                            Toast.makeText(context, R.string.failed_fetch_location, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT).show();
                         });
 
             }
         }
     }
 
+    LocationCallback locationCallback = new LocationCallback() {
+        @Override
+        public void onLocationResult(LocationResult locationResult) {
+            if (locationResult == null) {
+                return;
+            }
+            for (Location location : locationResult.getLocations()) {
+                if (location != null) {
+                    currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+                    fetchData(currentLatLng);
+
+                    if (mFusedLocationClient != null) {
+                        mFusedLocationClient.removeLocationUpdates(locationCallback);
+                    }
+                }
+            }
+        }
+    };
 
     /**
      * Fetch data from server
+     *
      * @param currentLatLng
      */
     private void fetchData(LatLng currentLatLng) {
-        hideLoader();
-        showLoader();
 
-
-        NetworkService.getInstance().callBatchApi(currentLatLng,new Request(), new NetworkResponse() {
+        NetworkService.getInstance().callBatchApi(currentLatLng, new Request(), new NetworkResponse() {
             @SuppressLint("SetTextI18n")
             @Override
             public void onNetworkResponse(Request request) {
@@ -143,8 +169,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showErrorLayout() {
-        showLoader();
-       // errorLayout.setVisibility(View.VISIBLE);
+        if (loader != null && loader.isShowing()) loader.dismiss();
+        errorLayout.setVisibility(View.VISIBLE);
     }
 
     private void hideErrorLayout() {
@@ -163,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-         if (requestCode == GEOLOCATION_REQUEST) {
+        if (requestCode == GEOLOCATION_REQUEST) {
             getLocation();
         }
     }
